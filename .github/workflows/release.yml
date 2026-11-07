@@ -117,7 +117,17 @@ jobs:
           for service in agent broker validator; do
             ref="$PREFIX:$service-$VERSION-$ARCH"
             docker tag "smash-bots:$service-dev" "$ref"
-            docker push "$ref"
+            # GHCR can transiently reject an upload with "unknown blob". Retry the
+            # same tested image, never rebuild it or swallow a permanent failure.
+            for attempt in 1 2 3; do
+              if docker push "$ref"; then break; fi
+              if [ "$attempt" -eq 3 ]; then
+                echo "Image upload failed after three attempts."
+                exit 1
+              fi
+              echo "Retrying image upload in $((attempt * 10)) seconds..."
+              sleep "$((attempt * 10))"
+            done
           done
           node scripts/release-metadata.mjs architecture --prefix "$PREFIX" --version "$VERSION" --arch "$ARCH" --commit "$(git rev-parse HEAD)" --output "release-out/$ARCH.json"
       - uses: actions/upload-artifact@v4

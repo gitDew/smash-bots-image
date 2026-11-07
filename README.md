@@ -115,6 +115,27 @@ automatically. See [`config/AZURE.md`](config/AZURE.md). GitHub push permissions
 still need a separate live team submission test before the event.
 `make init-event` refuses to overwrite an existing `.env.event`.
 
+### CI diagnostics (organizer only)
+
+GitHub CLI can inspect this private repository directly after one browser login:
+
+```sh
+gh auth login --hostname github.com --web --git-protocol https --scopes workflow
+gh run list --repo gitDew/smash-bots-image
+gh run view RUN_ID --repo gitDew/smash-bots-image --log-failed
+```
+
+Use your normal image-repository account, not team tokens or the Azure key. There
+is no need to paste CI logs into chat. For a transient registry-upload failure:
+
+```sh
+gh run rerun RUN_ID --repo gitDew/smash-bots-image --failed
+gh run watch RUN_ID --repo gitDew/smash-bots-image --exit-status
+```
+
+The workflow retries each image upload up to three times with bounded delays;
+persistent failures still stop publication. It never rebuilds an image for a retry.
+
 ### 2. Publish the shared event images once
 
 The implementation must first be committed/pushed to `gitDew/smash-bots-image`.
