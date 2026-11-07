@@ -1,0 +1,2 @@
+# Match the arena's installed libmelee version. Refresh docs when updating it.
+melee==0.47.3

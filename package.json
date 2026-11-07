@@ -1,0 +1,31 @@
+{
+  "name": "smash-bots-agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "tsc",
+    "check": "tsc --noEmit",
+    "test": "npm run build && PI_OFFLINE=1 PI_TELEMETRY=0 node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "0.84.4",
+    "@earendil-works/pi-coding-agent": "0.84.4",
+    "@earendil-works/pi-tui": "0.84.4",
+    "typebox": "1.3.7"
+  },
+  "overrides": {
+    "@earendil-works/pi-ai": "0.84.4",
+    "@earendil-works/pi-agent-core": "0.84.4",
+    "@earendil-works/pi-tui": "0.84.4"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.3",
+    "fflate": "0.8.2",
+    "typescript": "5.9.3",
+    "yaml": "2.8.3"
+  }
+}

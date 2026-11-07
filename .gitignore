@@ -1,11 +1,18 @@
 .env
 .env.*
 !.env.example
+!.env.event.example
+
+# Generated team bundles contain credentials. Release metadata is generated too.
+bundles/
+release-out/
+release.json
 
 TODO.md
 
 .venv/
 node_modules/
+dist/
 __pycache__/
 *.py[cod]
 .DS_Store

@@ -1,0 +1,55 @@
+<!-- Markdown snapshot generated from the rendered libmelee documentation. -->
+
+# Libmelee
+
+Open API written in Python 3 for making your own Smash Bros: Melee AI that works with Slippi Online
+
+## Quick Example
+
+```
+ 1import melee
+ 2
+ 3console = melee.Console(path="/SlippiOnline/")
+ 4
+ 5controller = melee.Controller(console=console, port=1)
+ 6controller_human = melee.Controller(console=console,
+ 7                                    port=2,
+ 8                                    type=melee.ControllerType.GCN_ADAPTER)
+ 9
+10console.run()
+11console.connect()
+12
+13controller.connect()
+14controller_human.connect()
+15
+16while True:
+17    gamestate = console.step()
+18    # Press buttons on your controller based on the GameState here!
+```
+
+For a fully fleshed-out example program that you can run, check out `example.py`.
+
+If you’re looking to read SLP files and don’t need to interface with Dolphin, then it’s even easier:
+
+```
+1console = melee.Console(is_dolphin=False, path="YOUR_FILE.slp")
+2console.connect()
+3
+4while True:
+5    gamestate = console.step()
+6    # step() returns None when the file ends
+7    if gamestate is None:
+8        break
+9    print(gamestate.players[1].position.x, gamestate.players[1].position.y)
+```
+
+## Getting Started
+
+First thing’s first, let’s make sure you have everything setup properly.
+
+- Install and configure Slippi, just like you would for rollback netplay. Full instructions here: [https://slippi.gg](https://slippi.gg)
+- If you’re on Linux using the official appimage, extract it using ./Slippi_Online-x86_64.AppImage –appimage-extract. This will pull apart the app image into a folder in the same directory.
+- If you want to play interactively with or against your AI, you’ll probably want a GameCube Adapter, available on Amazon here: [https://www.amazon.com/Super-Smash-GameCube-Adapter-Wii-U/dp/B00L3LQ1FI](https://www.amazon.com/Super-Smash-GameCube-Adapter-Wii-U/dp/B00L3LQ1FI). Or alternatively the HitBox adapter works well too: [https://www.hitboxarcade.com/products/gamecube-controller-adapter](https://www.hitboxarcade.com/products/gamecube-controller-adapter)
+- Install some custom Slippi Gecko Codes. You can find them here: [https://github.com/altf4/slippi-ssbm-asm/blob/libmelee/Output/Netplay/GALE01r2.ini](https://github.com/altf4/slippi-ssbm-asm/blob/libmelee/Output/Netplay/GALE01r2.ini) Simply replace your existing GALE01r2.ini file with this one. On Linux with the appimage, the file is located at squashfs-root/usr/bin/Sys/GameSettings/GALE01r2.ini.
+- Make sure you have all the Required and Recommended Gecko Codes enabled.
+- Run ./example.py -e PATH_TO_SLIPPI_FOLDER (Not the exe itself, the folder) If you’re using the Linux appimage, set this to squashfs-root/usr/bin/.

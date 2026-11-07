@@ -1,0 +1,99 @@
+# Always use this launcher configuration, not an unrestricted `docker run pi`.
+# Run one Compose project per team; named volumes/networks must not be shared.
+services:
+  broker:
+    image: ${IMAGE_PREFIX:-smash-bots}:broker-${IMAGE_TAG:-dev}
+    build:
+      context: .
+      target: broker
+    env_file:
+      - path: ${ENV_FILE:-.env}
+        format: raw
+    environment:
+      PI_OFFLINE: "1"
+      PI_TELEMETRY: "0"
+      PI_SKIP_VERSION_CHECK: "1"
+      EXPECTED_TEAM_ID: ${EVENT_TEAM_ID:-}
+    read_only: true
+    user: "1000:1000"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    init: true
+    pids_limit: 64
+    mem_limit: 512m
+    cpus: 1.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=0700,uid=1000,gid=1000
+    volumes:
+      - state:/state
+      - jobs:/jobs
+    networks: [private, outbound]
+    depends_on:
+      validator:
+        condition: service_started
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
+  validator:
+    image: ${IMAGE_PREFIX:-smash-bots}:validator-${IMAGE_TAG:-dev}
+    build:
+      context: .
+      target: validator
+    # Only the supervisor starts as root; source executes as 65534:65534.
+    # SETUID/SETGID drop the child's identity/groups; KILL enforces its timeout.
+    # setuid clears the child's capabilities; no-new-privileges prevents regaining them.
+    user: "0:1000"
+    cap_drop: [ALL]
+    cap_add: [SETUID, SETGID, KILL]
+    security_opt: [no-new-privileges:true]
+    read_only: true
+    network_mode: none
+    init: true
+    pids_limit: 16
+    mem_limit: 512m
+    cpus: 1.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=16m,mode=0700
+    volumes:
+      - jobs:/jobs
+
+  agent:
+    image: ${IMAGE_PREFIX:-smash-bots}:agent-${IMAGE_TAG:-dev}
+    build:
+      context: .
+      target: agent
+    # No env_file, Git token, model API key, repository mount, or Docker socket.
+    environment:
+      PI_OFFLINE: "1"
+      PI_TELEMETRY: "0"
+      PI_SKIP_VERSION_CHECK: "1"
+      TERM: ${TERM:-xterm-256color}
+    read_only: true
+    user: "1000:1000"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    init: true
+    pids_limit: 32
+    mem_limit: 768m
+    cpus: 1.0
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=32m,mode=0700,uid=1000,gid=1000
+    networks: [private]
+    stdin_open: true
+    tty: true
+    depends_on:
+      broker:
+        condition: service_healthy
+
+networks:
+  private:
+    internal: true
+  outbound: {}
+
+volumes:
+  state: {}
+  jobs: {}
