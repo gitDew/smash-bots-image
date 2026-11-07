@@ -11,13 +11,21 @@ A Pi-powered chat and a multiline prompt field. They can say things like
 The agent reads the offline libmelee docs, changes `bot.py`, checks it, and publishes
 it. Explanations remain short and friendly; code/documentation tool output is hidden.
 
-- Enter sends a prompt; Shift+Enter or Ctrl+J adds a line.
-- `/verify` checks the current draft.
-- `/submit` checks it again, then commits and pushes it.
-- `/new` clears the conversation, **not** the draft.
-- Escape cancels Pi; `/quit` exits. Drafts survive container restarts.
+**Children only type an idea and press Enter.** For a behavior change, the agent
+reads/edits the bot, calls `verify_bot`, fixes failures, and calls `submit_bot`
+automatically. They never have to request verification/submission, approve a
+publication step, or learn commands. The transcript contains friendly replies;
+source, Python diagnostics, JSON, and commit hashes stay hidden. Additional
+prompts entered while Pi is busy are processed one at a time.
 
-`!commands`, `@paths`, and ordinary Pi administration commands do **not** execute.
+There are **no slash commands or command menus**. Slash-prefixed text, `!commands`,
+and `@paths` are literal prompts, not direct UI actions. Verification/submission
+remain fixed agent tools; the broker still revalidates before every push. Pure
+explanations do not change/publish a bot, and explicit requests not to publish
+are respected. An organizer can interrupt/exit with Escape/Ctrl+C; stopping and
+relaunching keeps the saved draft and starts a fresh, temporary chat.
+
+Ordinary Pi administration commands do **not** execute.
 This uses Pi's SDK and TUI rather than its unrestricted CLI: simply hiding the
 LLM's `bash` tool would not disable the CLI's `!`, file attachments, external
 editor, sharing, or configuration commands.
@@ -198,7 +206,20 @@ Windows extraction does not preserve POSIX permissions: keep folders under the
 assigned user's account with appropriate Windows access controls.
 **These ZIPs contain credentials. Transfer them privately, never via public
 release attachments or Git.** The generator refuses to replace an existing output
-folder; to regenerate, use a new `--output` directory:
+folder. To upgrade images without changing the private API/team configuration,
+select a matching public release version explicitly (for example, the prompt-only
+UI in `v0.1.1`):
+
+```sh
+gh release download v0.1.1 --repo gitDew/smash-bots-image --pattern release.json --dir release-out/v0.1.1
+make bundles RELEASE_VERSION=v0.1.1 RELEASE_FILE=release-out/v0.1.1/release.json
+```
+
+The version override still requires digest-pinned metadata for the expected image
+namespace. It changes only the selected image release/output folder, not credentials.
+The new folders go to `bundles/v0.1.1/`; run `stop` in the old team folder before
+launching the new one. The same per-team Docker volumes preserve drafts/commits.
+To regenerate an existing version separately, use a new `--output` directory:
 
 ```sh
 node scripts/bundles.mjs generate --config .env.event --release release.json --output bundles/reconfigured
@@ -363,7 +384,8 @@ fallback that runs bot code in the broker or on the laptop**.
 
 - Drafts and unpushed commits live in the per-team `state` named volume.
 - Chat is deliberately in-memory/ephemeral; restart and Pi can read the saved draft.
-- Retry `/submit` after a failed push. An already-published commit is not duplicated.
+- After a failed push, ask in ordinary language, e.g. "Please try sending my bot
+  again." The agent retries with its tool; an already-published commit is not duplicated.
 - External changes to the remote branch are rejected, not merged/overwritten.
   An organizer must reconcile them; keep/back up the old volume before resetting it.
 - Cancellation after a submit request has reached the broker may still finish the

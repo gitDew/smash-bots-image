@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { Type } from "typebox";
 import { StringEnum } from "@earendil-works/pi-ai";
 import { defineTool, truncateHead, type ToolDefinition } from "@earendil-works/pi-coding-agent";
-import { DOC_TOPICS, type BotSnapshot, type DocTopic, type PublicConfig } from "./shared.js";
+import { DOC_TOPICS, type BotSnapshot, type DocTopic, type PublicConfig, type Verification } from "./shared.js";
 
 export class BrokerClient {
   constructor(private baseUrl = "http://broker:8080") {}
@@ -106,13 +106,17 @@ export function botTools(client: BrokerClient, docs: LocalDocs): ToolDefinition[
     }),
     defineTool({
       name: "verify_bot", label: "Check bot", executionMode: "sequential",
-      description: "Check the current bot's syntax, offline-code policy, Bot interface, selectable character, and simulated frame/controller inputs using real libmelee in a separate network-disabled sandbox. No commands or arguments.",
+      description: "Automatically check every saved behavior change: syntax, offline-code policy, Bot interface, selectable character, and simulated controller inputs in a separate network-disabled sandbox. On failure, fix/save/recheck yourself; never ask the child to run a command. No arguments.",
       parameters: empty,
-      async execute(_id, _args, signal) { return textResult(JSON.stringify(await client.request("/bot/verify", {}, signal))); },
+      async execute(_id, _args, signal) {
+        const result = await client.request<Verification>("/bot/verify", {}, signal);
+        if (!result.ok) throw new Error(result.message);
+        return textResult(JSON.stringify(result));
+      },
     }),
     defineTool({
       name: "submit_bot", label: "Publish bot", executionMode: "sequential",
-      description: "Verify the exact current bot again, commit a change to bot.py only, and push to this team's fixed repository/branch. No paths, URLs, branches, commit messages, or Git commands are accepted. Return the published commit hash; never claim success on an error.",
+      description: "Automatically finish a working behavior change: reverify the exact current bot, commit bot.py only, and push to the team's fixed repository/branch. No paths/URLs/branches/commands are accepted. The child must not have to request submission or use a slash command. Claim readiness only after this succeeds; do not show commit hashes to children.",
       parameters: empty,
       async execute(_id, _args, signal) { return textResult(JSON.stringify(await client.request("/bot/submit", {}, signal))); },
     }),

@@ -4,7 +4,7 @@ import { test } from "node:test";
 import { loadConfig } from "../dist/config.js";
 import { checkCode, TOOL_NAMES, DOC_TOPICS } from "../dist/shared.js";
 import { BrokerClient, LocalDocs, botTools } from "../dist/tools.js";
-import { createTeamSession, fixedResources, commandFor, safeText, operationText } from "../dist/agent.js";
+import { createTeamSession, fixedResources, sendTextPrompt, safeText, WELCOME } from "../dist/agent.js";
 
 export const environment = {
   TEAM_ID: "team_a", TEAM_REPO_URL: "https://github.com/example/smash-a.git",
@@ -108,17 +108,31 @@ test("read_bot can retrieve every line without truncating a large bot", async ()
   }
 });
 
-test("the kid UI renders friendly verification/publish results, not raw JSON or code", () => {
-  assert.equal(operationText({ ok: false, message: "Fix the input" }), "Needs attention: Fix the input");
-  assert.equal(operationText({ commit: "a".repeat(40), message: "Published" }), "Published\nPublished version: aaaaaaaaaaaa");
+test("the kid UI requires only an idea and Enter, with no slash-command hints", () => {
+  assert.match(WELCOME, /press Enter/);
+  assert.ok(!WELCOME.includes("/"));
+  assert.equal(safeText("hi\x1b]52;c;evil\x07\n🦊"), "hi]52;c;evil\n🦊");
 });
 
-test("the kid UI does not interpret !shell, @files, or unrestricted Pi commands", () => {
-  for (const prompt of ["!rm -rf /", "!!env", "@/proc/self/environ", "make Fox jump"])
-    assert.equal(commandFor(prompt), undefined);
-  for (const command of ["/login", "/share", "/export /tmp/evil", "/reload", "/submit https://evil.test"])
-    assert.equal(commandFor(command), "unknown");
-  assert.equal(commandFor("/submit"), "submit");
-  assert.equal(commandFor("/verify"), "verify");
-  assert.equal(safeText("hi\x1b]52;c;evil\x07\n🦊"), "hi]52;c;evil\n🦊");
+test("every UI submission is literal prompt text, never a command or file expansion", async () => {
+  const calls = [];
+  const session = { prompt: async (text, options) => { calls.push({ text, options }); } };
+  for (const text of ["Make Kirby jump", "/verify", "/submit", "/new", "/quit", "!rm -rf /", "@/proc/self/environ"])
+    await sendTextPrompt(session, text);
+  assert.deepEqual(calls.map((call) => call.text), ["Make Kirby jump", "/verify", "/submit", "/new", "/quit", "!rm -rf /", "@/proc/self/environ"]);
+  assert.ok(calls.every((call) => call.options.expandPromptTemplates === false));
+});
+
+test("verification failure is a failed tool call so the agent repairs it itself", async () => {
+  const client = { request: async () => ({ ok: false, message: "Invalid analog input", sha256: "a".repeat(64) }) };
+  const tool = botTools(client, docs).find((tool) => tool.name === "verify_bot");
+  await assert.rejects(tool.execute("test", {}, undefined, undefined, undefined), /Invalid analog input/);
+});
+
+test("agent instructions require automatic repair/verification/submission and child-friendly results", async () => {
+  const instructions = await readFile(new URL("../config/AGENTS.md", import.meta.url), "utf8");
+  assert.match(instructions, /Automatically call `verify_bot`/);
+  assert.match(instructions, /automatically call `submit_bot`/);
+  assert.match(instructions, /never ask the child to use commands/i);
+  assert.match(instructions, /Do not display the hash/);
 });

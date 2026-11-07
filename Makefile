@@ -4,6 +4,7 @@ ENV_FILE ?= .env
 PYTHON ?= python3
 EVENT_CONFIG ?= .env.event
 RELEASE_FILE ?= release.json
+RELEASE_VERSION ?=
 export ENV_FILE
 export EVENT_TEAM_ID = $(TEAM)
 COMPOSE = docker compose --env-file $(ENV_FILE) --project-name $(PROJECT)
@@ -53,4 +54,4 @@ check-model:
 
 bundles:
 	npm run build
-	node scripts/bundles.mjs generate --config $(EVENT_CONFIG) --release $(RELEASE_FILE)
+	node scripts/bundles.mjs generate --config $(EVENT_CONFIG) --release $(RELEASE_FILE) $(if $(RELEASE_VERSION),--version $(RELEASE_VERSION),)

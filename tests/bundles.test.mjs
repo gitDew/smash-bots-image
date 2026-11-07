@@ -143,6 +143,21 @@ test("generator writes private folders and ZIPs, handles literal keys, and prese
   assert.equal((await readdir(output)).length, 8);
 });
 
+test("a new public image version can be selected without modifying private team/model configuration", async (t) => {
+  const root = await temp(t);
+  const configPath = join(root, ".env.event");
+  const releasePath = join(root, "release.json");
+  const output = join(root, "bundles", "v0.1.1");
+  const updated = { ...release, version: "v0.1.1", images: Object.fromEntries(Object.entries(release.images).map(([name, ref]) => [name, ref.replace("v0.1.0", "v0.1.1")])) };
+  await writeFile(configPath, validText, { mode: 0o600 });
+  await writeFile(releasePath, JSON.stringify(updated));
+  await generateBundles({ configPath, releasePath, output, version: "v0.1.1" });
+  assert.equal(await readFile(configPath, "utf8"), validText);
+  const compose = parse(await readFile(join(output, "team_d", "compose.yaml"), "utf8"));
+  assert.match(compose.services.agent.image, /:agent-v0\.1\.1@sha256:/);
+  assert.equal(parseEnv(await readFile(join(output, "team_d", "credentials.env"), "utf8")).GITHUB_TOKEN, "github_pat_test_d");
+});
+
 test("generated Compose parses on Docker without needing build source or interpolating keys", async (t) => {
   try { execFileSync("docker", ["compose", "version"], { stdio: "ignore" }); } catch { t.skip("Docker Compose CLI not installed"); return; }
   const root = await temp(t);

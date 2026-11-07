@@ -58,18 +58,18 @@ export async function bundleFiles(root, team, release) {
     "runtime.env": `# Public launcher metadata; credentials.env is loaded RAW by the broker only.\nEVENT_TEAM_ID=${team.config.team}\nEVENT_PLATFORM=${team.platform}\n`,
     "credentials.env": credentials,
     [launchName]: windows ? launch.replace(/\r?\n/g, "\r\n") : launch,
-    "README.txt": `${team.config.team} — ${windows ? "Windows Intel" : "Apple Silicon"} — ${release.version}\n\nInstall/start Docker Desktop first (Linux containers; WSL2 on Windows).\nOpen a terminal in this folder. One-time preparation:\n  ${setup}\nThen launch Pi:\n  ${start}\n\nNo local image builds, Git/Python/Pi installation, desktop shortcuts, or registry login are needed.\nThe package must be public on GHCR before setup. Start reuses downloaded digest-pinned images.\nYour draft survives restarts; stop/down keeps volumes. Chat is temporary.\nCheck broker logs if GitHub rejects access. Test one live prompt/submission before the event.\n\nPRIVATE: credentials.env contains only this team's GitHub token and the shared model key.\nDo not upload this folder/ZIP to GitHub or share it with other teams. Revoke keys after the event.\nIf Windows policy blocks scripts, follow your IT policy; this launcher does not change it.\n`,
+    "README.txt": `${team.config.team} — ${windows ? "Windows Intel" : "Apple Silicon"} — ${release.version}\n\nInstall/start Docker Desktop first (Linux containers; WSL2 on Windows).\nOpen a terminal in this folder. One-time preparation:\n  ${setup}\nThen launch Pi:\n  ${start}\n\nNo local image builds, Git/Python/Pi installation, desktop shortcuts, or registry login are needed.\nThe package must be public on GHCR before setup. Start reuses downloaded digest-pinned images.\nChildren just type an idea and press Enter; the agent checks, repairs, and submits changes automatically.\nNo slash commands, raw code, Python diagnostics, or commit hashes are shown or required.\nThe organizer can stop the UI with Ctrl+C. Saved drafts survive restarts; stop/down keeps volumes. Chat is temporary.\nCheck broker logs if GitHub rejects access. Test one live prompt/submission before the event.\n\nPRIVATE: credentials.env contains only this team's GitHub token and the shared model key.\nDo not upload this folder/ZIP to GitHub or share it with other teams. Revoke keys after the event.\nIf Windows policy blocks scripts, follow your IT policy; this launcher does not change it.\n`,
   };
 }
 
-export async function generateBundles({ configPath, releasePath, output, root = ROOT }) {
+export async function generateBundles({ configPath, releasePath, output, version, root = ROOT }) {
   const info = await stat(configPath);
   if (process.platform !== "win32" && (info.mode & 0o077)) throw new Error("Protect the master config first: chmod 600 .env.event");
   const config = eventConfig(await readFile(configPath, "utf8"));
   let metadata;
   try { metadata = JSON.parse(await readFile(releasePath, "utf8")); }
   catch { throw new Error("A valid release.json from the image release workflow is required before generating bundles."); }
-  const release = validateRelease(metadata, config.imagePrefix, config.version);
+  const release = validateRelease(metadata, config.imagePrefix, version || config.version);
   // Do not silently replace existing credentials/assignments. Choose a new output folder to regenerate.
   await mkdir(dirname(output), { recursive: true, mode: 0o700 });
   await mkdir(output, { mode: 0o700 });
@@ -97,10 +97,10 @@ export async function generateBundles({ configPath, releasePath, output, root = 
 async function main() {
   const [command = "check", ...args] = process.argv.slice(2);
   if (!["check", "generate"].includes(command)) throw new Error("Use bundles.mjs check|generate.");
-  const options = { config: ".env.event", release: "release.json", output: "" };
+  const options = { config: ".env.event", release: "release.json", output: "", version: "" };
   for (let index = 0; index < args.length; index += 2) {
     const key = args[index]?.slice(2);
-    if (!args[index]?.startsWith("--") || !Object.hasOwn(options, key) || !args[index + 1]) throw new Error("Use --config, --release, or --output followed by a path.");
+    if (!args[index]?.startsWith("--") || !Object.hasOwn(options, key) || !args[index + 1]) throw new Error("Use --config, --release, --output, or --version followed by a value.");
     options[key] = args[index + 1];
   }
   const configPath = resolve(options.config);
@@ -112,7 +112,8 @@ async function main() {
     return;
   }
   const config = eventConfig(await readFile(configPath, "utf8"));
-  const result = await generateBundles({ configPath, releasePath: resolve(options.release), output: resolve(options.output || join("bundles", config.version)) });
+  const result = await generateBundles({ configPath, releasePath: resolve(options.release),
+    version: options.version || undefined, output: resolve(options.output || join("bundles", options.version || config.version)) });
   console.log(`Created ${result.teams.length} PRIVATE team folders/ZIPs in ${result.output}. Do not upload them as release assets.`);
 }
 

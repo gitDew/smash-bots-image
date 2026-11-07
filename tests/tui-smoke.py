@@ -44,18 +44,23 @@ def until(text, timeout=40):
 
 
 try:
-    until("Ready — tell Pi")
+    until("Ready — tell me")
+    assert b"/verify" not in output and b"/submit" not in output and b"/quit" not in output
     os.write(master, b"Make my bot play as Falco.\r")
-    until("Your Falco bot has been published by the test publisher.")
-    assert b"Published version:" in output
-    assert b"9360" in output
+    # A second Enter while Pi is busy queues a normal prompt, with no extra commands.
+    os.write(master, b"Explain my bot without changing it.\r")
+    until("Your Falco bot is ready!")
+    until("Your bot chases nearby opponents.")
+    assert b"Published version:" not in output
+    assert b"9360" not in output
+    assert b"Analog input" not in output, "Repair diagnostics should remain hidden from children."
     assert b"import melee" not in output, "Code tool results should remain hidden in the kid UI."
-    os.write(master, b"/new\r")
-    until("New chat. Your bot draft has not changed.")
-    os.write(master, b"/quit\r")
+    os.write(master, b"/submit\r")
+    until("Slash text is a regular prompt.")  # No direct UI submission endpoint.
+    os.write(master, b"\x03")  # Organizer stops the terminal; children need no commands.
     process.wait(timeout=10)
     assert process.returncode == 0
-    print("Real terminal UI: prompt → bot edit → real Python verification → test submission; /new and /quit passed.")
+    print("Prompt-only UI: Enter → edit → failed verification → automatic repair → verify → test submission; queued prompts and no slash dispatch passed.")
 finally:
     if process.poll() is None:
         subprocess.run(["docker", "rm", "-f", name], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)

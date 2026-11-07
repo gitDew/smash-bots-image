@@ -81,5 +81,5 @@ for attempt in $(seq 1 20); do
   sleep 1
 done
 python3 tests/tui-smoke.py "$NETWORK" "${PREFIX}:agent-${TAG}" "$UI"
-docker exec "$BROKER" node -e 'const f=require("node:fs");const p=JSON.parse(f.readFileSync("/state/test-published.json","utf8"));if(!/^[a-f0-9]{40}$/.test(p.commit)||!f.readFileSync("/state/bot.py","utf8").includes("return melee.Character.FALCO"))process.exit(1)'
+docker exec "$BROKER" node -e 'const f=require("node:fs");const p=JSON.parse(f.readFileSync("/state/test-published.json","utf8"));if(!/^[a-f0-9]{40}$/.test(p.commit)||p.submissions!==1||!f.readFileSync("/state/bot.py","utf8").includes("return melee.Character.FALCO"))process.exit(1)'
 printf '%s\n' 'All container smoke tests passed.'
